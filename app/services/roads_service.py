@@ -12,7 +12,7 @@ class RoadsService:
         self.timeout = 5.0
 
     async def snap_to_roads(self, coordinates: List[Dict[str, float]]) -> Optional[List[Dict[str, float]]]:
-        if not self.api_key
+        if not self.api_key:
             logger.warning("Google Maps API key not configured, skipping path refinement")
             return None
 
