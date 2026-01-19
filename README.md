@@ -1,1 +1,0 @@
-# BBP-path-management-service
