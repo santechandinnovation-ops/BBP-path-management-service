@@ -3,6 +3,7 @@ from typing import List, Optional
 from enum import Enum
 from datetime import datetime
 
+
 class DataSource(str, Enum):
     MANUAL = "MANUAL"
     AUTOMATED = "AUTOMATED"
