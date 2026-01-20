@@ -45,10 +45,12 @@ def find_nearest_segment(obstacle_lat: float, obstacle_lon: float, segments: Lis
         end_lat = float(segment['end_latitude'])
         end_lon = float(segment['end_longitude'])
 
-        mid_lat = (start_lat + end_lat) / 2
-        mid_lon = (start_lon + end_lon) / 2
-
-        distance = calculate_haversine_distance(obstacle_lat, obstacle_lon, mid_lat, mid_lon)
+        # Calculate distance to the closest point on the line segment
+        distance = point_to_segment_distance(
+            obstacle_lat, obstacle_lon,
+            start_lat, start_lon,
+            end_lat, end_lon
+        )
 
         if distance < min_distance:
             min_distance = distance
@@ -58,6 +60,37 @@ def find_nearest_segment(obstacle_lat: float, obstacle_lon: float, segments: Lis
         return None
 
     return nearest_segment_id
+
+
+def point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
+    """
+    Calculate the minimum distance from point (px, py) to a line segment defined by (x1, y1) and (x2, y2).
+    All coordinates are in latitude/longitude.
+    Returns distance in meters.
+    """
+    # Vector from segment start to end
+    dx = x2 - x1
+    dy = y2 - y1
+    
+    # If segment is a point, return distance to that point
+    if dx == 0 and dy == 0:
+        return calculate_haversine_distance(px, py, x1, y1)
+    
+    # Calculate the projection parameter t
+    # t = 0 means closest point is at segment start
+    # t = 1 means closest point is at segment end
+    # t between 0-1 means closest point is on the segment
+    t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)
+    
+    # Clamp t to [0, 1] to stay on the segment
+    t = max(0, min(1, t))
+    
+    # Calculate the closest point on the segment
+    closest_lat = x1 + t * dx
+    closest_lon = y1 + t * dy
+    
+    # Return the distance from the obstacle to the closest point
+    return calculate_haversine_distance(px, py, closest_lat, closest_lon)
 
 def calculate_path_score(segments: List[Dict], obstacles: List[Dict]) -> float:
     status_multipliers = {
