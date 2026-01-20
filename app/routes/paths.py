@@ -80,11 +80,16 @@ async def create_manual_path(
                 'start_latitude': segment.startLatitude,
                 'start_longitude': segment.startLongitude,
                 'end_latitude': segment.endLatitude,
-                'end_longitude': segment.endLongitude
+                'end_longitude': segment.endLongitude,
+                'route_geometry': segment.routeGeometry  # Include all route points for accurate matching
             })
+            
+            # Debug log
+            logger.info(f"Segment {idx}: start=({segment.startLatitude}, {segment.startLongitude}), end=({segment.endLatitude}, {segment.endLongitude}), routeGeometry points: {len(segment.routeGeometry) if segment.routeGeometry else 0}")
 
         if path_data.obstacles:
             for obstacle in path_data.obstacles:
+                logger.info(f"Processing obstacle at ({obstacle.latitude}, {obstacle.longitude})")
                 target_segment_id = obstacle.segmentId
 
                 if target_segment_id is None:
@@ -96,6 +101,7 @@ async def create_manual_path(
                     )
 
                     if target_segment_id is None:
+                        logger.error(f"No segment found within 50m of obstacle at ({obstacle.latitude}, {obstacle.longitude}). Segments: {len(segments_for_matching)}")
                         conn.rollback()
                         raise HTTPException(
                             status_code=400,

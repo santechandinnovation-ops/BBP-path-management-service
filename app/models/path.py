@@ -52,6 +52,8 @@ class SegmentInput(BaseModel):
     endLatitude: float
     endLongitude: float
     order: int
+    routeGeometry: Optional[List[List[float]]] = None  # List of [lat, lng] points for road-snapped path
+    distance: Optional[float] = None  # Distance in meters
 
     @field_validator('startLatitude', 'endLatitude')
     @classmethod

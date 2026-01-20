@@ -1,6 +1,9 @@
 import math
 from typing import List, Dict
+import logging
 from app.models.path import SegmentStatus, ObstacleSeverity
+
+logger = logging.getLogger(__name__)
 
 def calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000
@@ -32,31 +35,63 @@ def is_within_radius(lat1: float, lon1: float, lat2: float, lon2: float, radius_
     return distance <= radius_meters
 
 def find_nearest_segment(obstacle_lat: float, obstacle_lon: float, segments: List[Dict], max_distance_meters: float = 50.0) -> str:
+    """
+    Find the nearest segment to an obstacle point.
+    If routeGeometry is available, uses all points along the route for accurate matching.
+    Otherwise falls back to start/end points only.
+    """
     obstacle_lat = float(obstacle_lat)
     obstacle_lon = float(obstacle_lon)
 
     min_distance = float('inf')
     nearest_segment_id = None
 
+    logger.debug(f"Finding nearest segment for obstacle at ({obstacle_lat}, {obstacle_lon})")
+    logger.debug(f"Number of segments to check: {len(segments)}")
+
     for segment in segments:
         segment_id = segment['segment_id']
-        start_lat = float(segment['start_latitude'])
-        start_lon = float(segment['start_longitude'])
-        end_lat = float(segment['end_latitude'])
-        end_lon = float(segment['end_longitude'])
+        route_geometry = segment.get('route_geometry')
+        
+        logger.debug(f"Checking segment {segment_id}, route_geometry: {route_geometry is not None}, points: {len(route_geometry) if route_geometry else 0}")
+        
+        if route_geometry and len(route_geometry) >= 2:
+            # Use the detailed route geometry for accurate matching
+            for i in range(len(route_geometry) - 1):
+                p1 = route_geometry[i]
+                p2 = route_geometry[i + 1]
+                
+                # route_geometry is [[lat, lng], [lat, lng], ...]
+                distance = point_to_segment_distance(
+                    obstacle_lat, obstacle_lon,
+                    float(p1[0]), float(p1[1]),
+                    float(p2[0]), float(p2[1])
+                )
+                
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_segment_id = segment_id
+        else:
+            # Fallback to start/end points only
+            start_lat = float(segment['start_latitude'])
+            start_lon = float(segment['start_longitude'])
+            end_lat = float(segment['end_latitude'])
+            end_lon = float(segment['end_longitude'])
 
-        # Calculate distance to the closest point on the line segment
-        distance = point_to_segment_distance(
-            obstacle_lat, obstacle_lon,
-            start_lat, start_lon,
-            end_lat, end_lon
-        )
+            distance = point_to_segment_distance(
+                obstacle_lat, obstacle_lon,
+                start_lat, start_lon,
+                end_lat, end_lon
+            )
 
-        if distance < min_distance:
-            min_distance = distance
-            nearest_segment_id = segment_id
+            if distance < min_distance:
+                min_distance = distance
+                nearest_segment_id = segment_id
+
+    logger.info(f"Nearest segment for obstacle at ({obstacle_lat}, {obstacle_lon}): {nearest_segment_id}, distance: {min_distance:.2f}m")
 
     if min_distance > max_distance_meters:
+        logger.warning(f"Min distance {min_distance:.2f}m exceeds max {max_distance_meters}m")
         return None
 
     return nearest_segment_id
