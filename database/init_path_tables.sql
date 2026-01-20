@@ -23,7 +23,7 @@ END $$;
 -- Table: PathInfo
 CREATE TABLE IF NOT EXISTS PathInfo (
     path_info_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES Users(user_id) ON DELETE SET NULL,
+    user_id UUID,  -- References user_id from User Management Service (no FK constraint across services)
     name VARCHAR(255),
     description TEXT,
     data_source data_source_type NOT NULL DEFAULT 'MANUAL',
