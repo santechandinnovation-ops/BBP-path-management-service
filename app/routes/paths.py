@@ -8,7 +8,7 @@ from app.models.path import (
     ManualPathCreate, PathInfoResponse, RouteResponse, RoutesSearchResponse,
     PathDetailResponse, SegmentResponse, ObstacleResponse
 )
-from app.utils.security import get_current_user
+from app.utils.security import get_current_user, get_current_user_optional
 from app.utils.geo_utils import calculate_segment_length, is_within_radius, calculate_path_score, find_nearest_segment
 from app.config.database import get_db_connection, return_db_connection
 from app.config.settings import settings
@@ -162,8 +162,17 @@ async def search_routes(
     originLat: float = Query(...),
     originLon: float = Query(...),
     destLat: float = Query(...),
-    destLon: float = Query(...)
+    destLon: float = Query(...),
+    user_id: Optional[str] = Depends(get_current_user_optional)
 ):
+    """
+    Search for routes between origin and destination.
+    
+    Visibility rules:
+    - Public paths (publishable=TRUE) are visible to everyone
+    - Private paths (publishable=FALSE) are visible ONLY to the user who created them
+    - When a logged-in user searches, they see both public paths AND their own private paths
+    """
     conn = None
     try:
         if originLat < -90 or originLat > 90 or destLat < -90 or destLat > 90:
@@ -177,14 +186,31 @@ async def search_routes(
 
         tolerance = settings.TOLERANCE_RADIUS_METERS
 
-        cursor.execute("""
-            SELECT DISTINCT pi.path_info_id
-            FROM PathInfo pi
-            JOIN Segments s ON pi.path_info_id = s.path_info_id
-            WHERE pi.publishable = TRUE
-        """)
+        # Query paths based on visibility rules:
+        # - All public paths (publishable = TRUE)
+        # - Private paths (publishable = FALSE) ONLY if they belong to the current user
+        if user_id:
+            # Authenticated user: can see public paths + their own private paths
+            logger.info(f"Search by authenticated user: {user_id}")
+            cursor.execute("""
+                SELECT DISTINCT pi.path_info_id
+                FROM PathInfo pi
+                JOIN Segments s ON pi.path_info_id = s.path_info_id
+                WHERE pi.publishable = TRUE 
+                   OR (pi.publishable = FALSE AND pi.user_id = %s)
+            """, (user_id,))
+        else:
+            # Anonymous user: can only see public paths
+            logger.info("Search by anonymous user: showing only public paths")
+            cursor.execute("""
+                SELECT DISTINCT pi.path_info_id
+                FROM PathInfo pi
+                JOIN Segments s ON pi.path_info_id = s.path_info_id
+                WHERE pi.publishable = TRUE
+            """)
 
         path_ids = [row[0] for row in cursor.fetchall()]
+        logger.info(f"Found {len(path_ids)} paths matching visibility criteria")
 
         matching_paths = []
 
@@ -324,22 +350,43 @@ async def search_routes(
             return_db_connection(conn)
 
 @router.get("/{path_id}", response_model=PathDetailResponse)
-async def get_path_details(path_id: str):
+async def get_path_details(
+    path_id: str,
+    user_id: Optional[str] = Depends(get_current_user_optional)
+):
+    """
+    Get path details by ID.
+    
+    Visibility rules:
+    - Public paths are visible to everyone
+    - Private paths are visible ONLY to the user who created them
+    """
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # First, get the path info without filtering by publishable
         cursor.execute("""
             SELECT path_info_id, user_id, name, description, data_source, publishable, created_date
             FROM PathInfo
-            WHERE path_info_id = %s AND publishable = TRUE
+            WHERE path_info_id = %s
         """, (path_id,))
 
         path_info = cursor.fetchone()
 
         if not path_info:
             raise HTTPException(status_code=404, detail="Path not found")
+        
+        # Check visibility: public paths are visible to all, private paths only to owner
+        path_owner_id = path_info[1]
+        is_publishable = path_info[5]
+        
+        if not is_publishable:
+            # Private path - only the owner can see it
+            if user_id != path_owner_id:
+                logger.warning(f"User {user_id} attempted to access private path {path_id} owned by {path_owner_id}")
+                raise HTTPException(status_code=404, detail="Path not found")
 
         cursor.execute("""
             SELECT segment_id, street_name, status,
