@@ -36,9 +36,9 @@ def is_within_radius(lat1: float, lon1: float, lat2: float, lon2: float, radius_
 
 def find_nearest_segment(obstacle_lat: float, obstacle_lon: float, segments: List[Dict], max_distance_meters: float = 50.0) -> str:
     """
-    Find the nearest segment to an obstacle point.
-    If routeGeometry is available, uses all points along the route for accurate matching.
-    Otherwise falls back to start/end points only.
+    finds the closest segment to an obstacal point
+    if we have routeGeometry it uses all the points for beter matching
+    otherwhise it just uses start and end points
     """
     obstacle_lat = float(obstacle_lat)
     obstacle_lon = float(obstacle_lon)
@@ -56,12 +56,12 @@ def find_nearest_segment(obstacle_lat: float, obstacle_lon: float, segments: Lis
         logger.debug(f"Checking segment {segment_id}, route_geometry: {route_geometry is not None}, points: {len(route_geometry) if route_geometry else 0}")
         
         if route_geometry and len(route_geometry) >= 2:
-            # Use the detailed route geometry for accurate matching
+            # use detailed route geomtry for more acurate matching
             for i in range(len(route_geometry) - 1):
                 p1 = route_geometry[i]
                 p2 = route_geometry[i + 1]
                 
-                # route_geometry is [[lat, lng], [lat, lng], ...]
+                # route_geometry format is like [[lat, lng], [lat, lng], ...]
                 distance = point_to_segment_distance(
                     obstacle_lat, obstacle_lon,
                     float(p1[0]), float(p1[1]),
@@ -72,7 +72,7 @@ def find_nearest_segment(obstacle_lat: float, obstacle_lon: float, segments: Lis
                     min_distance = distance
                     nearest_segment_id = segment_id
         else:
-            # Fallback to start/end points only
+            # fallback - just use start and end points if no geometry
             start_lat = float(segment['start_latitude'])
             start_lon = float(segment['start_longitude'])
             end_lat = float(segment['end_latitude'])
@@ -99,32 +99,31 @@ def find_nearest_segment(obstacle_lat: float, obstacle_lon: float, segments: Lis
 
 def point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
     """
-    Calculate the minimum distance from point (px, py) to a line segment defined by (x1, y1) and (x2, y2).
-    All coordinates are in latitude/longitude.
-    Returns distance in meters.
+    calcualtes min distance from a point to a line segmnet
+    coords are lat/lon and it returns meters
+    uses some math stuff i found online lol
     """
-    # Vector from segment start to end
+    # vector from start to end of segment
     dx = x2 - x1
     dy = y2 - y1
     
-    # If segment is a point, return distance to that point
+    # if the segment is basicaly a point just return distnace to it
     if dx == 0 and dy == 0:
         return calculate_haversine_distance(px, py, x1, y1)
     
-    # Calculate the projection parameter t
-    # t = 0 means closest point is at segment start
-    # t = 1 means closest point is at segment end
-    # t between 0-1 means closest point is on the segment
+    # calculate projection paramater t
+    # t=0 means closet point is at start, t=1 at end
+    # t between 0-1 means its somwhere on the segment
     t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)
     
-    # Clamp t to [0, 1] to stay on the segment
+    # clamp t to stay on the segment (cant be outside 0-1)
     t = max(0, min(1, t))
     
-    # Calculate the closest point on the segment
+    # now we can get the closets point on segment
     closest_lat = x1 + t * dx
     closest_lon = y1 + t * dy
     
-    # Return the distance from the obstacle to the closest point
+    # finaly return the distance to closet point
     return calculate_haversine_distance(px, py, closest_lat, closest_lon)
 
 def calculate_path_score(segments: List[Dict], obstacles: List[Dict]) -> float:

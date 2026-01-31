@@ -8,15 +8,15 @@ logger = logging.getLogger(__name__)
 connection_pool = None
 
 def _get_connection_kwargs():
-    """Get connection parameters with keepalive settings."""
+    """get connection params with keepalive stuff"""
     return {
         'dsn': settings.DATABASE_URL,
-        # TCP keepalive settings to detect dead connections
+        # TCP keepalive settings so we can detect dead conections
         'keepalives': 1,
-        'keepalives_idle': 30,      # Start keepalive after 30s idle
-        'keepalives_interval': 10,  # Send keepalive every 10s
-        'keepalives_count': 5,      # Close after 5 failed keepalives
-        'connect_timeout': 10,      # Connection timeout
+        'keepalives_idle': 30,      # start keepalive after 30sec idle
+        'keepalives_interval': 10,  # send keepalive evry 10sec
+        'keepalives_count': 5,      # close after 5 failed keepalives
+        'connect_timeout': 10,      # conection timeout
     }
 
 def init_db_pool():
@@ -33,7 +33,7 @@ def init_db_pool():
         raise
 
 def _test_connection(conn):
-    """Test if connection is still alive."""
+    """check if conection is still working"""
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT 1")
@@ -42,36 +42,36 @@ def _test_connection(conn):
         return False
 
 def get_db_connection():
-    """Get a connection from pool, with health check."""
+    """get a conection from pool with helth check"""
     global connection_pool
     if not connection_pool:
         raise Exception("Connection pool not initialized")
     
     conn = connection_pool.getconn()
     
-    # Test if connection is still valid
+    # test if the conection is still valid
     if not _test_connection(conn):
         logger.warning("Stale connection detected, reconnecting...")
         try:
             conn.close()
         except Exception:
             pass
-        # Put back the dead connection and get a fresh one
+        # put back the dead conection and get a new one
         connection_pool.putconn(conn, close=True)
         conn = connection_pool.getconn()
         
-        # Verify the new connection works
+        # make sure the new conection actualy works
         if not _test_connection(conn):
             raise Exception("Failed to establish database connection")
     
     return conn
 
 def return_db_connection(conn):
-    """Return connection to pool, closing if broken."""
+    """return conection to pool, close if its broken"""
     global connection_pool
     if connection_pool and conn:
         try:
-            # Check if connection is still usable before returning to pool
+            # check if conection is usable before puting back in pool
             if conn.closed:
                 connection_pool.putconn(conn, close=True)
             else:

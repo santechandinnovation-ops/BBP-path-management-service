@@ -81,7 +81,7 @@ async def create_manual_path(
                 'start_longitude': segment.startLongitude,
                 'end_latitude': segment.endLatitude,
                 'end_longitude': segment.endLongitude,
-                'route_geometry': segment.routeGeometry  # Include all route points for accurate matching
+                'route_geometry': segment.routeGeometry  # include all route pts for acurate matching
             })
             
             # Debug log
@@ -166,12 +166,12 @@ async def search_routes(
     user_id: Optional[str] = Depends(get_current_user_optional)
 ):
     """
-    Search for routes between origin and destination.
+    searches for routes bettween origin and destination
     
-    Visibility rules:
-    - Public paths (publishable=TRUE) are visible to everyone
-    - Private paths (publishable=FALSE) are visible ONLY to the user who created them
-    - When a logged-in user searches, they see both public paths AND their own private paths
+    visibilty rules (important!):
+    - public paths (publishable=true) everyone can see them
+    - private paths (publishable=false) only owner can see
+    - if user is logged in they see public + their own privat paths
     """
     conn = None
     try:
@@ -186,11 +186,11 @@ async def search_routes(
 
         tolerance = settings.TOLERANCE_RADIUS_METERS
 
-        # Query paths based on visibility rules:
-        # - All public paths (publishable = TRUE)
-        # - Private paths (publishable = FALSE) ONLY if they belong to the current user
+        # query paths with visibilty rules:
+        # - all public paths where publishable = TRUE
+        # - private paths ONLY if belong to current user
         if user_id:
-            # Authenticated user: can see public paths + their own private paths
+            # autenticated user: sees public + their own private paths
             logger.info(f"Search by authenticated user: {user_id}")
             cursor.execute("""
                 SELECT DISTINCT pi.path_info_id
@@ -200,7 +200,7 @@ async def search_routes(
                    OR (pi.publishable = FALSE AND pi.user_id = %s)
             """, (user_id,))
         else:
-            # Anonymous user: can only see public paths
+            # anon user: can only see public paths
             logger.info("Search by anonymous user: showing only public paths")
             cursor.execute("""
                 SELECT DISTINCT pi.path_info_id
