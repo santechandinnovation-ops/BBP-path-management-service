@@ -1,5 +1,3 @@
--- Path Management Service Database Schema
-
 -- Create ENUM types for Path Management
 DO $$
 BEGIN

@@ -21,7 +21,7 @@ def setup_database():
         cursor.execute(sql_script)
         conn.commit()
 
-        print("✓ Path Management tables created successfully")
+        print("Path Management tables created successfully")
         print("  - PathInfo table")
         print("  - Segments table")
         print("  - Obstacles table")

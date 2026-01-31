@@ -101,7 +101,6 @@ def point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: fl
     """
     calcualtes min distance from a point to a line segmnet
     coords are lat/lon and it returns meters
-    uses some math stuff i found online lol
     """
     # vector from start to end of segment
     dx = x2 - x1
