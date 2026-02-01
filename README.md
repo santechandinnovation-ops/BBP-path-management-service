@@ -24,14 +24,15 @@ Handles all path-related operations including route search using OSRM, manual pa
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/routes/search` | Search routes between points |
-| POST | `/paths/manual` | Create manual path |
-| GET | `/paths/{id}` | Get path details |
-| POST | `/paths/obstacles` | Report obstacle |
-| GET | `/paths/obstacles/{segment_id}` | Get segment obstacles |
+| Method | Endpoint                        | Description                     |
+|--------|---------------------------------|---------------------------------|
+| GET    | `/health`                       | Health check                    |
+| GET    | `/routes/search`                | Search routes between points    |
+| POST   | `/paths/manual`                 | Create manual path              |
+| GET    | `/paths/{id}`                   | Get path details                |
+| POST   | `/paths/obstacles`              | Report obstacle                 |
+| GET    | `/paths/obstacles/{segment_id}` | Get segment obstacles           |
+
 
 ## Database Tables
 
